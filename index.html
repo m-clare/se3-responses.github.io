@@ -45,8 +45,8 @@ h1{
 
 <script>
 
-var width = 494;
-var height = 384;
+var width = 500;
+var height = 400;
 
 var tip = d3.tip()
   .attr('class', 'd3-tip')
@@ -70,7 +70,7 @@ var svg = d3.select('#vis').append('svg')
 svg.call(tip);
 
 var projection = d3.geo.albersUsa()
-    .scale(494) // mess with this if you want
+    .scale(550) // mess with this if you want
     .translate([width / 2, height / 2]);
 
 var path = d3.geo.path()
