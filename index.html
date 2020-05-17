@@ -1,177 +1,178 @@
 <!DOCTYPE html>
 <html>
-<meta http-equiv="content-type" content="text/html; charset=utf-8">
-<style>
-  
-  
-  body {
-    font-family: "Helvetica Light", sans-serif;
-    font-size: 16px;
-    padding: 12px;
-    font-variant: small-caps;
-}
-h1{
-  font-size: 3em;
-  font-weight: 700;
-  color: #777878;
-  font-variant: small-caps;
-}
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <style>
+    body {
+      font-family: "Helvetica Light", sans-serif;
+      font-size: 16px;
+      padding: 12px;
+      font-variant: small-caps;
+    }
+    h1 {
+      font-size: 3em;
+      font-weight: 700;
+      color: #777878;
+      font-variant: small-caps;
+    }
 
-.states {
-    stroke: #B1B1B1;
-    stroke-width:1px;
-}
-.states:hover{
-  opacity: .8;
-}
+    .states {
+      stroke: #b1b1b1;
+      stroke-width: 1px;
+    }
+    .states:hover {
+      opacity: 0.8;
+    }
 
-.d3-tip {
-  line-height: 1;
-  padding: 6px;
-  background: #888888;
-  color: #fff;
-  border-radius: 4px;
- }
+    .d3-tip {
+      line-height: 1;
+      padding: 6px;
+      background: #888888;
+      color: #fff;
+      border-radius: 4px;
+    }
 
- div.tooltip {
-     position: absolute;
-     text-align: center;
-     line-height: 1;
-     padding: 6px;
-     background: #888888;
-     color: #fff;
-     border-radius: 4px;
-     pointer-events: none;
- }
-
-</style>
-<body>
-  
+    div.tooltip {
+      position: absolute;
+      text-align: center;
+      line-height: 1;
+      padding: 6px;
+      background: #888888;
+      color: #fff;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+  </style>
+  <body>
     <div id="vis"></div>
 
-<script src="//d3js.org/d3.v3.min.js"></script>
-<script src="//d3js.org/queue.v1.min.js"></script>
-<script src="//d3js.org/topojson.v1.min.js"></script>
-<script src="https://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+    <script src="//d3js.org/d3.v3.min.js"></script>
+    <script src="//d3js.org/queue.v1.min.js"></script>
+    <script src="//d3js.org/topojson.v1.min.js"></script>
+    <script src="https://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
 
-<script>
+    <script>
+      var width = document.getElementById("vis").offsetWidth;
+      var designWidth = 560;
+      var scaleFactor = width / designWidth;
+      var height = width * 0.715;
 
- var width = 560;
- var height = 400;
+      var tip = d3
+        .tip()
+        .attr("class", "d3-tip")
+        .offset([-5, 0])
+        .html(function (d) {
+          var dataRow = countryById.get(d.properties.name);
+          if (dataRow) {
+            return dataRow.states + ": " + dataRow.respondents;
+          } else {
+            console.log("no dataRow", d);
+            return d.properties.name + ": No data.";
+          }
+        });
 
- var tip = d3.tip()
-             .attr('class', 'd3-tip')
-             .offset([-5, 0])
-             .html(function(d) {
-                 var dataRow = countryById.get(d.properties.name);
-                 if (dataRow) {
-                     return dataRow.states + ": " + dataRow.respondents;
-                 } else {
-                     console.log("no dataRow", d);
-                     return d.properties.name + ": No data.";
-                 }
-             })
+      var svg = d3
+        .select("#vis")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
 
+      svg.call(tip);
 
- var svg = d3.select('#vis').append('svg')
-             .attr('width', width)
-             .attr('height', height);
+      var projection = d3.geo
+        .albersUsa()
+        .scale(700 * scaleFactor) // mess with this if you want
+        .translate([width / 2, height / 2]);
 
- svg.call(tip);
+      var path = d3.geo.path().projection(projection);
 
- var projection = d3.geo.albersUsa()
-                    .scale(700) // mess with this if you want
-                    .translate([width / 2, height / 2]);
+      var colorScale = d3.scale
+        .linear()
+        .range(["#FFFFFF", "#96272d"])
+        .interpolate(d3.interpolateLab);
 
- var path = d3.geo.path()
-              .projection(projection);
+      var countryById = d3.map();
 
- var colorScale = d3.scale.linear().range(["#FFFFFF", "#96272d"]).interpolate(d3.interpolateLab);
+      var div = d3
+        .select("body")
+        .append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
 
- var countryById = d3.map();
+      var q = queue()
+        .defer(d3.json, "USA.json")
+        .defer(d3.csv, "responses.csv", typeAndSet) // process
+        .await(loaded);
 
- var div = d3.select("body")
-             .append("div")
-             .attr("class", "tooltip")
-             .style("opacity", 0);
+      function typeAndSet(d) {
+        d.respondents = +d.respondents;
+        countryById.set(d.states, d);
+        return d;
+      }
 
- queue()
-     .defer(d3.json, "USA.json")
-     .defer(d3.csv, "responses.csv", typeAndSet) // process
-     .await(loaded);
+      function getColor(d) {
+        var dataRow = countryById.get(d.properties.name);
+        if (dataRow) {
+          return colorScale(dataRow.respondents);
+        } else {
+          return "#ccc";
+        }
+      }
 
- function typeAndSet(d) {
-     d.respondents = +d.respondents;
-     countryById.set(d.states, d);
-     return d;
- }
+      function loaded(error, usa, respondents) {
+        colorScale.domain(
+          d3.extent(respondents, function (d) {
+            return d.respondents;
+          })
+        );
 
- function getColor(d) {
-     var dataRow = countryById.get(d.properties.name);
-     if (dataRow) {
-         return colorScale(dataRow.respondents);
-     } else {
-         return "#ccc";
-     }
- }
+        var states = topojson.feature(usa, usa.objects.units).features;
 
-
- function loaded(error, usa, respondents) {
-
-     colorScale.domain(d3.extent(respondents, function(d) {return d.respondents;}));
-
-     var states = topojson.feature(usa, usa.objects.units).features;
-
-     svg.selectAll('path.states')
-        .data(states)
-        .enter()
-        .append('path')
-        .attr('class', 'states')
-        .attr('d', path)
-        .on('mouseover', tip.show)
-        .on('mouseout', tip.hide)
-        .attr('fill', function(d,i) {
+        svg
+          .selectAll("path.states")
+          .data(states)
+          .enter()
+          .append("path")
+          .attr("class", "states")
+          .attr("d", path)
+          .on("mouseover", tip.show)
+          .on("mouseout", tip.hide)
+          .attr("fill", function (d, i) {
             return getColor(d);
-        })
-        .append("title");
+          })
+          .append("title");
 
-     d3.csv("top_cities_2020.csv", function(data) {
-         svg.selectAll("circle")
+        d3.csv("top_cities_2020.csv", function (data) {
+          svg
+            .selectAll("circle")
             .data(data)
             .enter()
             .append("circle")
-            .attr("cx", function(d) {
-                return projection([d.longitude, d.latitude])[0];
+            .attr("cx", function (d) {
+              return projection([d.longitude, d.latitude])[0];
             })
-            .attr("cy", function(d) {
-                return projection([d.longitude, d.latitude])[1];
+            .attr("cy", function (d) {
+              return projection([d.longitude, d.latitude])[1];
             })
-            .attr("r", function(d) {
-                return Math.sqrt(d.respondents);
+            .attr("r", function (d) {
+              return Math.sqrt(d.respondents) * scaleFactor;
             })
             .style("fill", "rgb(183,170,168)")
             .style("opacity", 0.6)
             .style("stroke", "#FFFFFF")
 
-            .on("mouseover", function(d){
-                div.transition()
-                   .duration(10)
-                   .style("opacity", 0.9);
+            .on("mouseover", function (d) {
+              div.transition().duration(10).style("opacity", 0.9);
 
-                div.text(d.city  + ", " + d.respondents)
-                   .style("left", (d3.event.pageX) + "px")
-                   .style("top", (d3.event.pageY - 28) + "px");
+              div
+                .text(d.city + ", " + d.respondents)
+                .style("left", d3.event.pageX + "px")
+                .style("top", d3.event.pageY - 28 + "px");
             })
-            .on("mouseout", function(d) {
-                div.transition()
-                   .duration(10)
-                   .style("opacity", 0);
-            })
-
-     });
-
- }
-
-</script>
-</body>
+            .on("mouseout", function (d) {
+              div.transition().duration(10).style("opacity", 0);
+            });
+        });
+      }
+    </script>
+  </body>
 </html>
